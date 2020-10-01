@@ -7,7 +7,11 @@ const users = new Schema({
     Email: String,
     Phonenumber : String,
     Token : String,
-    Uuid : String
+    Uuid : String,
+    ListFriends:Array,
+    FriendsRequest : Array ,
+    Req: Array,
+    Locked : Number
 });
 
 module.exports = mongoose.model("users", users);

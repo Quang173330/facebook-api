@@ -37,15 +37,15 @@ router.post("/register/", (req, res) => {
 
 router.post("/login/", async (req, res) => {
     const { phonenumber, password } = req.body;
-
+    let date= new Date()
     if (phonenumber && password) {
         let user = await Users.findOne({ Phonenumber: phonenumber })
         if (user) {
             if (password === user.Password) {
-                jwt.sign({ id: user._id }, secretKey, { expiresIn: "365d" },
+                jwt.sign({ phonenumber: user.Phonenumber, password : user.Password,time: dateuserid.getTime()}, secretKey, { expiresIn: "365d" },
                     async (err, token) => {
                         let a = await Users.findOneAndUpdate({ _id: user._id }, { Token: token })
-                        if(a){
+                        if (a) {
                             return res.json({
                                 code: "1000",
                                 message: "OK",
@@ -55,7 +55,7 @@ router.post("/login/", async (req, res) => {
                             })
                         } else {
                             return res.json({
-                                message : "update failed"
+                                message: "update failed"
                             })
                         }
 
@@ -83,9 +83,9 @@ router.post("/login/", async (req, res) => {
 
 
 
-router.post("/logout/", (req, res) =>{
+router.post("/logout/", (req, res) => {
     const token = req.body.token;
-    if ( token) {
+    if (token) {
         jwt.verify(token, secretKey, async (err, userData) => {
             if (err) {
                 res.json({
@@ -93,27 +93,27 @@ router.post("/logout/", (req, res) =>{
                     message: "Parameter value is invalid"
                 });
             } else {
-                const id = userData.id;
-                let user = await Users.findOne({ _id: id })
+                const phonenumber = userData.phonenumber;
+                let user = await Users.findOne({ Phonenumber: phonenumber })
                 if (user) {
                     if (token === user.Token) {
-                        let a = await Users.findOneAndUpdate({ _id: id }, { Token: "" })
-                        if(a){
+                        let a = await Users.findOneAndUpdate({ _id: user._id }, { Token: "" })
+                        if (a) {
                             return res.json({
                                 code: "1000",
                                 message: "OK"
                             })
                         } else {
                             return res.json({
-                                message : "update failed"
+                                message: "update failed"
                             })
                         }
 
                     } else {
-                        if(user.Token===""||user.Token===null){
+                        if (user.Token === "" || user.Token === null) {
                             return res.json({
-                                code : "1004",
-                                message : "User don't have token in db"
+                                code: "1004",
+                                message: "User don't have token in db"
                             })
 
                         } else {
@@ -142,4 +142,107 @@ router.post("/logout/", (req, res) =>{
     }
 })
 
+router.post("/set_request_friend/", (req, res) => {
+    const {token,id}=req.body;
+    if(token&&id){
+        jwt.verify(token, secretKey, async (err, userData) => {
+            if (err) {
+                res.json({
+                    code: "1004",
+                    message: "Parameter value is invalid"
+                });
+            } else {
+                const phonenumber = userData.phonenumber;
+                let user = await Users.findOne({ Phonenumber: phonenumber })
+                if (user) {
+                    if (token === user.Token) {
+                        let a = await Users.findOne({_id:id})
+                        if (a) {
+                            if(user._id===a._id){
+                                return res.json({
+                                    code : "1004",
+                                    message : "the recipient is the sender"
+                                })
+                            } else {
+                                if(user.Locked==1){
+                                    return res.json({
+                                        code : "1004",
+                                        message: "User is locked"
+                                    })
+                                } else {
+                                    let l1 = user.ListFriends;
+                                    let l2 = a.ListFriends;
+                                    let count = 0;
+                                    for(let i =0 ; i<l1.length;i++){
+                                        for (let j =0 ; j<l2.length;j++){
+                                            if(l1[i].id===l2[j].id){
+                                                count = count +1;
+                                            }
+                                        }
+                                    }
+                                    if(l1.length>3000){
+                                        return res.json({
+                                            code :"9994",
+                                            message : "Your friends list is full"
+                                        })
+                                    } else if(l2.length>3000){
+                                        return res.json({
+                                            code : "9994",
+                                            message : "Their friends list is full"
+                                        })
+                                    }
+                                   let update1 =await  Users.FriendsRequest.update({_id:a._id},{$push : {"id":user._id}});
+                                   let update2 =await  Users.Req.update({_id:user._id},{$push : {"id":a._id}});
+                                   if(update1&&update2){
+                                       return res.json({
+                                           code :"1000",
+                                           message:"OK"
+                                       })
+                                   } else{
+                                       return res.json({
+                                           code :"qqq",
+                                           message:"update failed"
+                                       })
+                                   }
+                                }
+                            }
+                        } else {
+                            return res.json({
+                                code: "1004",
+                                message: "Don't have user to send request"
+                            })
+                        }
+
+                    } else {
+                        if (user.Token === "" || user.Token === null) {
+                            return res.json({
+                                code: "1004",
+                                message: "User don't have token in db"
+                            })
+
+                        } else {
+                            return res.json({
+                                code: "1004",
+                                message: "Token is invalid"
+                            })
+                        }
+
+                    }
+                } else {
+                    return res.json({
+                        code: "1004",
+                        message: "Don't find user by token"
+                    })
+                }
+            }
+        });
+    } else {
+        return res.json({
+            code : "1002",
+            message : "Missing token or userid "
+
+        })
+    }
+
+})
 module.exports = router;
