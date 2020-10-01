@@ -194,7 +194,6 @@ router.post("/set_request_friend/", (req, res) => {
                                         })
                                     }
                                     let ar1 = user.Req;
-                         //           console.log(user.Req.id.toString())
                                     let ar2 = a.FriendsRequest;
                                     let c1 = false
                                     let c2 = false
@@ -282,4 +281,135 @@ router.post("/set_request_friend/", (req, res) => {
     }
 
 })
+
+router.post("/set_accept_friend/", (req, res) => {
+    const { token, user_id , is_accept } = req.body;
+    if (token && user_id) {
+        jwt.verify(token, secretKey, async (err, userData) => {
+            if (err) {
+                res.json({
+                    code: "1004",
+                    message: "Parameter value is invalid"
+                });
+            } else {
+                const phonenumber = userData.phonenumber;
+                let user = await Users.findOne({ Phonenumber: phonenumber })
+                if (user) {
+                    if (token === user.Token) {
+                        let a = await Users.findOne({ _id: user_id })
+                        if (a) {
+                            if (user._id === a._id) {
+                                return res.json({
+                                    code: "1004",
+                                    message: "the recipient is the sender"
+                                })
+                            } else {
+                                if (user.Locked == 1) {
+                                    return res.json({
+                                        code: "1004",
+                                        message: "You were locked"
+                                    })
+                                } else if (a.Locked==1) {
+                                    return res.json({
+                                        code : "1004",
+                                        message : "User was locked"
+                                    })
+                                } else {
+                                    let ar1 = user.FriendsRequest;
+                                    let check = false ;
+                                    for (let i=0;i<ar1.length;i++){
+                                        if(ar1[i].id.toString()==a._id.toString()){
+                                            check = true;
+                                            break;
+                                        }
+                                    }
+                                    if(!check){
+                                        return res.json({
+                                            code :"1004",
+                                            message : "Friend request is not exist"
+                                        })
+                                    }
+                                    if(is_accept!=="0"&&is_accept!=="1"){
+                                        return res.json({
+                                            code :"1004",
+                                            message : "Is_accept is invalid"
+                                        })
+                                    }
+                                    let ar2 = a.Req;
+                                    for(let i = 0;i<ar1.length;i++){
+                                        if(ar1[i].id.toString()==a._id.toString()){
+                                            await user.FriendsRequest.splice(i,1);
+                                            user.save();
+                                            break;
+                                        }
+                                    }
+                                                                        
+                                    for(let j = 0;j<ar2.length;j++){
+                                        if(ar2[j].id.toString()==user._id.toString()){
+                                            console.log(j)
+                                            console.log("jidfghj")
+                                            await a.Req.splice(j,1);
+                                            a.save();
+                                        }
+                                    }
+                                    if(is_accept==="1"){
+                                        await user.ListFriends.push({id:a._id});
+                                        await a.ListFriends.push({id:user._id});
+                                        user.save()
+                                        a.save()
+                                        return res.json({
+                                            code : "1000",
+                                            message : "Accept Request"
+                                        })
+                                    }
+                                    if(is_accept==="0"){
+                                        return res.json({
+                                            code : "1000",
+                                            message : "Decline request"
+                                        })
+                                    }
+
+                                }
+                            }
+                        } else {
+                            return res.json({
+                                code: "1004",
+                                message: "Don't have user to send request"
+                            })
+                        }
+
+                    } else {
+                        if (user.Token === "" || user.Token === null) {
+                            return res.json({
+                                code: "1004",
+                                message: "User don't have token in db"
+                            })
+
+                        } else {
+                            return res.json({
+                                code: "1004",
+                                message: "Token is invalid"
+                            })
+                        }
+
+                    }
+                } else {
+                    return res.json({
+                        code: "1004",
+                        message: "Don't find user by token"
+                    })
+                }
+            }
+        });
+    } else {
+        return res.json({
+            code: "1002",
+            message: "Missing token or userid "
+
+        })
+    }
+
+})
+
+
 module.exports = router;
