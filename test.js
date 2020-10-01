@@ -11,8 +11,9 @@ let array = [{
 async function get(){
    try {
     let c= await Products.findOne({Thumb:"123"})
-    let d = c.Category;
-    console.log(d.length)
+    console.log(c._id.ObjectId)
+
+    console.log(c.Category)
    } catch (error) {
        console.log(error)
    }
