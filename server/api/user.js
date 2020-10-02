@@ -7,6 +7,7 @@ const fs = require("fs");
 const secretKey = fs.readFileSync(__dirname + "/../a.key").toString();
 const Users = require("../models/users.js");
 const { check } = require("express-validator");
+const e = require("express");
 
 router.post("/register/", (req, res) => {
     const { username, email, password } = req.body;
@@ -86,328 +87,347 @@ router.post("/login/", async (req, res) => {
 
 router.post("/logout/", (req, res) => {
     const token = req.body.token;
-    if (token) {
-        jwt.verify(token, secretKey, async (err, userData) => {
-            if (err) {
-                res.json({
-                    code: "1004",
-                    message: "Parameter value is invalid"
-                });
-            } else {
-                const phonenumber = userData.phonenumber;
-                let user = await Users.findOne({ Phonenumber: phonenumber })
-                if (user) {
-                    if (token === user.Token) {
-                        let a = await Users.findOneAndUpdate({ _id: user._id }, { Token: "" })
-                        if (a) {
-                            return res.json({
-                                code: "1000",
-                                message: "OK"
-                            })
-                        } else {
-                            return res.json({
-                                message: "update failed"
-                            })
-                        }
-
-                    } else {
-                        if (user.Token === "" || user.Token === null) {
-                            return res.json({
-                                code: "1004",
-                                message: "User don't have token in db"
-                            })
-
-                        } else {
-                            return res.json({
-                                code: "1004",
-                                message: "Token is invalid"
-                            })
-                        }
-
-                    }
-                } else {
-                    return res.json({
+    try {
+        if (token) {
+            jwt.verify(token, secretKey, async (err, userData) => {
+                if (err) {
+                    res.json({
                         code: "1004",
-                        message: "Don't find user by token"
-                    })
+                        message: "Parameter value is invalid"
+                    });
+                } else {
+                    const phonenumber = userData.phonenumber;
+                    let user = await Users.findOne({ Phonenumber: phonenumber })
+                    if (user) {
+                        if (token === user.Token) {
+                            let a = await Users.findOneAndUpdate({ _id: user._id }, { Token: "" })
+                            if (a) {
+                                return res.json({
+                                    code: "1000",
+                                    message: "OK"
+                                })
+                            } else {
+                                return res.json({
+                                    code : "1001",
+                                    message: "update failed"
+                                })
+                            }
+    
+                        } else {
+                            if (user.Token === "" || user.Token === null) {
+                                return res.json({
+                                    code: "1004",
+                                    message: "User don't have token in db"
+                                })
+    
+                            } else {
+                                return res.json({
+                                    code: "1004",
+                                    message: "Token is invalid"
+                                })
+                            }
+    
+                        }
+                    } else {
+                        return res.json({
+                            code: "9995",
+                            message: "Don't find user by token"
+                        })
+                    }
                 }
-            }
-        });
-    } else {
-        return res.json(
-            {
-                code: "1002",
-                message: "No have Token"
-            }
-        )
+            });
+        } else {
+            return res.json(
+                {
+                    code: "1002",
+                    message: "No have Token"
+                }
+            )
+        }
+    } catch (error) {
+        return res.json({
+            code : "1005",
+            message : error
+        })
     }
+
 })
 
 router.post("/set_request_friend/", (req, res) => {
-    const { token, id } = req.body;
-    if (token && id) {
-        jwt.verify(token, secretKey, async (err, userData) => {
-            if (err) {
-                res.json({
-                    code: "1004",
-                    message: "Parameter value is invalid"
-                });
-            } else {
-                const phonenumber = userData.phonenumber;
-                let user = await Users.findOne({ Phonenumber: phonenumber })
-                if (user) {
-                    if (token === user.Token) {
-                        let a = await Users.findOne({ _id: id })
-                        if (a) {
-                            if (user._id === a._id) {
-                                return res.json({
-                                    code: "1004",
-                                    message: "the recipient is the sender"
-                                })
-                            } else {
-                                if (user.Locked == 1) {
+    const { token, user_id } = req.body;
+    try {
+        if (token && user_id) {
+            jwt.verify(token, secretKey, async (err, userData) => {
+                if (err) {
+                    res.json({
+                        code: "9998",
+                        message: "Token is invalid"
+                    });
+                } else {
+                    const phonenumber = userData.phonenumber;
+                    let user = await Users.findOne({ Phonenumber: phonenumber }) 
+                    if (user) {
+                        if (token === user.Token) {
+                                let a = await Users.findOne({ _id: user_id })
+                            if (a) {
+                                if (user._id === a._id) {
                                     return res.json({
-                                        code: "1004",
-                                        message: "User is locked"
+                                        code: "1003",
+                                        message: "The recipient is the sender"
                                     })
                                 } else {
-                                    let l1 = user.ListFriends;
-                                    let l2 = a.ListFriends;
-                                    let count = 0;
-                                    for (let i = 0; i < l1.length; i++) {
-                                        for (let j = 0; j < l2.length; j++) {
-                                            if (l1[i].id === l2[j].id) {
-                                                count = count + 1;
-                                            }
-                                        }
-                                    }
-    
-                                    if (l1.length > 3000) {
+                                    if (user.Locked == 1) {
                                         return res.json({
-                                            code: "9994",
-                                            message: "Your friends list is full"
+                                            code: "9995",
+                                            message: "You are  locked"
                                         })
-                                    } else if (l2.length > 3000) {
+                                    }else if (a.Locked==1){
                                         return res.json({
-                                            code: "9994",
-                                            message: "Their friends list is full"
-                                        })
-                                    }
-                                    let ar1 = user.Req;
-                                    let ar2 = a.FriendsRequest;
-                                    let c1 = false
-                                    let c2 = false
-                                    for(let i = 0;i<ar1.length;i++){
-                                        if(ar1[i].id.toString()==a._id.toString()){
-                                            console.log(i)
-                                            console.log("ji")
-                                            await user.Req.splice(i,1);
-                                            user.save();
-                                            c1=true
-                                        }
-                                    }
-                                                                        
-                                    for(let j = 0;j<ar2.length;j++){
-                                        if(ar2[j].id.toString()==user._id.toString()){
-                                            console.log(j)
-                                            console.log("jidfghj")
-                                            await a.FriendsRequest.splice(j,1);
-                                            a.save();
-                                            c2=true
-                                        }
-                                    }
-                                    if(c1&&c2){
-                                        return res.json({
-                                            code :"1000",
-                                            message : "Delete request friend"
-                                        })
-                                    }
-                                //    let update1 = await Users.FriendsRequest.update({ _id: "5f73771dcf7957a4e70b4f88" }, { $push: { "id": "5f73771dcf7957a4e70b4f88" } });
-                                //    let update2 = await Users.Req.update({ _id: user._id }, { $push: { "id": a._id } });
-                                    let update1 = await user.Req.push({id:a._id});
-                                    user.save()
-                                    let update2 =  await a.FriendsRequest.push({id:user._id});
-                                    a.save()
-
-                                    if (update1 && update2) {
-                                        return res.json({
-                                            code: "1000",
-                                            message: "OK"
+                                            code: "9995",
+                                            message: "User is locked"
                                         })
                                     } else {
+                                        let l1 = user.ListFriends;
+                                        let l2 = a.ListFriends;
+                                        let count = 0;
+                                        for (let i = 0; i < l1.length; i++) {
+                                            for (let j = 0; j < l2.length; j++) {
+                                                if (l1[i].id.toString() === l2[j].id.toString()) {
+                                                    count = count + 1;
+                                                }
+                                            }
+                                        }
+        
+                                        if (l1.length > 3000) {
+                                            return res.json({
+                                                code: "9994",
+                                                message: "Your friends list is full"
+                                            })
+                                        } else if (l2.length > 3000) {
+                                            return res.json({
+                                                code: "9994",
+                                                message: "Their friends list is full"
+                                            })
+                                        }
+                                        let ar1 = user.Req;
+                                        let ar2 = a.FriendsRequest;
+                                        let c1 = false
+                                        let c2 = false
+                                        for(let i = 0;i<ar1.length;i++){
+                                            if(ar1[i].id.toString()==a._id.toString()){
+                                                await user.Req.splice(i,1);
+                                                user.save();
+                                                c1=true
+                                            }
+                                        }
+                                                                            
+                                        for(let j = 0;j<ar2.length;j++){
+                                            if(ar2[j].id.toString()==user._id.toString()){
+                                                await a.FriendsRequest.splice(j,1);
+                                                a.save();
+                                                c2=true
+                                            }
+                                        }
+                                        if(c1&&c2){
+                                            return res.json({
+                                                code :"1000",
+                                                message : "Delete request friend",
+                                                requets_friend : count
+                                            })
+                                        }
+                                    //    let update1 = await Users.FriendsRequest.update({ _id: "5f73771dcf7957a4e70b4f88" }, { $push: { "id": "5f73771dcf7957a4e70b4f88" } });
+                                    //    let update2 = await Users.Req.update({ _id: user._id }, { $push: { "id": a._id } });
+                                        await user.Req.push({id:a._id});
+                                        user.save()
+                                        await a.FriendsRequest.push({id:user._id});
+                                        a.save()
                                         return res.json({
-                                            code: "qqq",
-                                            message: "update failed"
+                                            code: "1000",
+                                            message: "OK",
+                                            requets_friend: count
                                         })
                                     }
                                 }
+                            } else {
+                                return res.json({
+                                    code: "9995",
+                                    message: "Don't have user to send request"
+                                })
                             }
+    
                         } else {
-                            return res.json({
-                                code: "1004",
-                                message: "Don't have user to send request"
-                            })
+                            if (user.Token === "" || user.Token === null) {
+                                return res.json({
+                                    code: "1004",
+                                    message: "User don't have token in db"
+                                })
+    
+                            } else {
+                                return res.json({
+                                    code: "1004",
+                                    message: "Token is invalid"
+                                })
+                            }
+    
                         }
-
                     } else {
-                        if (user.Token === "" || user.Token === null) {
-                            return res.json({
-                                code: "1004",
-                                message: "User don't have token in db"
-                            })
-
-                        } else {
-                            return res.json({
-                                code: "1004",
-                                message: "Token is invalid"
-                            })
-                        }
-
+                        return res.json({
+                            code: "9995",
+                            message: "Don't find user by token"
+                        })
                     }
-                } else {
-                    return res.json({
-                        code: "1004",
-                        message: "Don't find user by token"
-                    })
                 }
-            }
-        });
-    } else {
+            });
+        } else {
+            return res.json({
+                code: "1002",
+                message: "Missing token or userid "
+    
+            })
+        } 
+    } catch (error) {
         return res.json({
-            code: "1002",
-            message: "Missing token or userid "
-
+            code:"1005",
+            message : error
         })
     }
+
 
 })
 
 router.post("/set_accept_friend/", (req, res) => {
     const { token, user_id , is_accept } = req.body;
-    if (token && user_id) {
-        jwt.verify(token, secretKey, async (err, userData) => {
-            if (err) {
-                res.json({
-                    code: "1004",
-                    message: "Parameter value is invalid"
-                });
-            } else {
-                const phonenumber = userData.phonenumber;
-                let user = await Users.findOne({ Phonenumber: phonenumber })
-                if (user) {
-                    if (token === user.Token) {
-                        let a = await Users.findOne({ _id: user_id })
-                        if (a) {
-                            if (user._id === a._id) {
-                                return res.json({
-                                    code: "1004",
-                                    message: "the recipient is the sender"
-                                })
-                            } else {
-                                if (user.Locked == 1) {
+    try {
+        if (token && user_id) {
+            jwt.verify(token, secretKey, async (err, userData) => {
+                if (err) {
+                    res.json({
+                        code: "9998",
+                        message: "Token is invalid"
+                    });
+                } else {
+                    const phonenumber = userData.phonenumber;
+                    let  user = await Users.findOne({ Phonenumber: phonenumber })   
+                    if (user) {
+                        if (token === user.Token) {
+                            let a = await Users.findOne({ _id: user_id }) 
+                            if (a) {
+                                if (user._id === a._id) {
                                     return res.json({
-                                        code: "1004",
-                                        message: "You were locked"
-                                    })
-                                } else if (a.Locked==1) {
-                                    return res.json({
-                                        code : "1004",
-                                        message : "User was locked"
+                                        code: "9995",
+                                        message: "The recipient is the sender"
                                     })
                                 } else {
-                                    let ar1 = user.FriendsRequest;
-                                    let check = false ;
-                                    for (let i=0;i<ar1.length;i++){
-                                        if(ar1[i].id.toString()==a._id.toString()){
-                                            check = true;
-                                            break;
+                                    if (user.Locked == 1) {
+                                        return res.json({
+                                            code: "9995",
+                                            message: "You were locked"
+                                        })
+                                    } else if (a.Locked==1) {
+                                        return res.json({
+                                            code : "1004",
+                                            message : "User was locked"
+                                        })
+                                    } else {
+                                        let ar1 = user.FriendsRequest;
+                                        let check = false ;
+                                        for (let i=0;i<ar1.length;i++){
+                                            if(ar1[i].id.toString()==a._id.toString()){
+                                                check = true;
+                                                break;
+                                            }
                                         }
-                                    }
-                                    if(!check){
-                                        return res.json({
-                                            code :"1004",
-                                            message : "Friend request is not exist"
-                                        })
-                                    }
-                                    if(is_accept!=="0"&&is_accept!=="1"){
-                                        return res.json({
-                                            code :"1004",
-                                            message : "Is_accept is invalid"
-                                        })
-                                    }
-                                    let ar2 = a.Req;
-                                    for(let i = 0;i<ar1.length;i++){
-                                        if(ar1[i].id.toString()==a._id.toString()){
-                                            await user.FriendsRequest.splice(i,1);
-                                            user.save();
-                                            break;
+                                        if(!check){
+                                            return res.json({
+                                                code :"9994",
+                                                message : "Friend request is not exist"
+                                            })
                                         }
-                                    }
-                                                                        
-                                    for(let j = 0;j<ar2.length;j++){
-                                        if(ar2[j].id.toString()==user._id.toString()){
-                                            console.log(j)
-                                            console.log("jidfghj")
-                                            await a.Req.splice(j,1);
-                                            a.save();
+                                        if(is_accept!=="0"&&is_accept!=="1"){
+                                            return res.json({
+                                                code :"1003",
+                                                message : "Is_accept is invalid"
+                                            })
                                         }
+                                        let ar2 = a.Req;
+                                        for(let i = 0;i<ar1.length;i++){
+                                            if(ar1[i].id.toString()==a._id.toString()){
+                                                await user.FriendsRequest.splice(i,1);
+                                                user.save();
+                                                break;
+                                            }
+                                        }
+                                                                            
+                                        for(let j = 0;j<ar2.length;j++){
+                                            if(ar2[j].id.toString()==user._id.toString()){
+                                                await a.Req.splice(j,1);
+                                                a.save();
+                                            }
+                                        }
+                                        if(is_accept==="1"){
+                                            await user.ListFriends.push({id:a._id});
+                                            await a.ListFriends.push({id:user._id});
+                                            user.save()
+                                            a.save()
+                                            return res.json({
+                                                code : "1000",
+                                                message : "Accept Request"
+                                            })
+                                        }
+                                        if(is_accept==="0"){
+                                            return res.json({
+                                                code : "1000",
+                                                message : "Decline request"
+                                            })
+                                        }
+    
                                     }
-                                    if(is_accept==="1"){
-                                        await user.ListFriends.push({id:a._id});
-                                        await a.ListFriends.push({id:user._id});
-                                        user.save()
-                                        a.save()
-                                        return res.json({
-                                            code : "1000",
-                                            message : "Accept Request"
-                                        })
-                                    }
-                                    if(is_accept==="0"){
-                                        return res.json({
-                                            code : "1000",
-                                            message : "Decline request"
-                                        })
-                                    }
-
                                 }
+                            } else {
+                                return res.json({
+                                    code: "9995",
+                                    message: "Don't have user to send request"
+                                })
                             }
+    
                         } else {
-                            return res.json({
-                                code: "1004",
-                                message: "Don't have user to send request"
-                            })
+                            if (user.Token === "" || user.Token === null) {
+                                return res.json({
+                                    code: "1004",
+                                    message: "User don't have token in db"
+                                })
+    
+                            } else {
+                                return res.json({
+                                    code: "1004",
+                                    message: "Token is invalid"
+                                })
+                            }
+    
                         }
-
                     } else {
-                        if (user.Token === "" || user.Token === null) {
-                            return res.json({
-                                code: "1004",
-                                message: "User don't have token in db"
-                            })
-
-                        } else {
-                            return res.json({
-                                code: "1004",
-                                message: "Token is invalid"
-                            })
-                        }
-
+                        return res.json({
+                            code: "9995",
+                            message: "Don't find user by token"
+                        })
                     }
-                } else {
-                    return res.json({
-                        code: "1004",
-                        message: "Don't find user by token"
-                    })
                 }
-            }
-        });
-    } else {
-        return res.json({
-            code: "1002",
-            message: "Missing token or userid "
-
-        })
+            });
+        } else {
+            return res.json({
+                code: "1002",
+                message: "Missing token or userid "
+    
+            })
+        }
+    } catch (error) {
+    return res.json({
+        code : "1005",
+        message:error
+    })    
     }
+
+
 
 })
 
